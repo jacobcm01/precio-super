@@ -4,11 +4,6 @@ export default async function handler(req, res) {
 
   if (!id) return res.status(400).json({ error: "ID requerido" });
 
-  // Limpieza robusta del ID para BonArea (acepta "13_7553" o "7553")
-  if (supermercado === 'bonarea' && id.includes('_')) {
-      id = id.split('_')[1];
-  }
-
   // --- MERCADONA (VILADECANS 08840) ---
   if (supermercado === 'mercadona') {
     try {
@@ -29,10 +24,13 @@ export default async function handler(req, res) {
     }
   }
 
-  // --- BONÀREA ---
+  // --- BONÀREA (Buscador Robusto) ---
   if (supermercado === 'bonarea') {
     try {
-      const urlBonArea = `https://www.bonarea-online.com/es/shop/product/${id}`;
+      // Intentamos con el ID limpio (quitando prefijos como 13_ si los hubiera)
+      const idLimpio = id.includes('_') ? id.split('_')[1] : id;
+      const urlBonArea = `https://www.bonarea-online.com/es/shop/product/${idLimpio}`;
+      
       const response = await fetch(urlBonArea, {
           headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -41,17 +39,20 @@ export default async function handler(req, res) {
           }
       });
 
-      if (!response.ok) return res.status(404).json({ error: `BonArea no encuentra el ID ${id}` });
+      if (!response.ok) {
+          // Si da 404, devolvemos un mensaje claro para el Logcat
+          return res.status(404).json({ error: `BonArea no encuentra el producto ${idLimpio}` });
+      }
       
       const html = await response.text();
       
-      // Buscamos precio en el script JSON de la página
+      // Buscamos el precio en el script JSON de la página
       const precioMatch = html.match(/"price"\s*:\s*"([\d.]+)"/) || html.match(/price\s*:\s*([\d.]+)/);
       const nombreMatch = html.match(/<h1[^>]*>(.*?)<\/h1>/);
 
       if (precioMatch) {
         return res.status(200).json({
-          id,
+          id: idLimpio,
           nombre: nombreMatch ? nombreMatch[1].trim() : "Producto BonÀrea",
           precio: parseFloat(precioMatch[1])
         });
