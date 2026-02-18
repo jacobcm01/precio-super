@@ -2,13 +2,16 @@ export default async function handler(req, res) {
   const supermercado = req.query.super;
   const id = req.query.id;
 
-  // --- LÓGICA MERCADONA (BARCELONA CP: 08840) ---
+  if (!id || id === "0") {
+    return res.status(400).json({ error: "ID de producto no válido" });
+  }
+
+  // --- LÓGICA MERCADONA (VILADECANS CP: 08840) ---
   if (supermercado === 'mercadona') {
     try {
-      // Añadimos cabecera de localización para asegurar precios de Barcelona
       const response = await fetch(`https://tienda.mercadona.es/api/products/${id}`, {
         headers: {
-          'Cookie': 'warehouse=08840', // Fuerza la tienda de Barcelona
+          'Cookie': 'warehouse=08840',
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
       });
@@ -18,8 +21,6 @@ export default async function handler(req, res) {
       }
 
       const data = await response.json();
-      
-      // Buscamos el precio unitario
       const precio = data.price_instructions.unit_price;
 
       return res.status(200).json({
@@ -36,6 +37,7 @@ export default async function handler(req, res) {
   // --- LÓGICA BONÀREA ---
   if (supermercado === 'bonarea') {
     try {
+      // BonÀrea usa el ID directamente en la URL
       const response = await fetch(`https://www.bonarea-online.com/es/shop/product/${id}`);
       
       if (!response.ok) {
@@ -44,7 +46,7 @@ export default async function handler(req, res) {
 
       const html = await response.text();
       
-      // Regex para extraer precio y nombre del HTML
+      // Buscamos el precio en el JSON de Schema.org que BonÀrea incluye en el HTML
       const precioMatch = html.match(/"price":\s*"([\d.]+)"/);
       const nombreMatch = html.match(/<h1[^>]*>(.*?)<\/h1>/);
 
