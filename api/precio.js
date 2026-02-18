@@ -1,17 +1,19 @@
 export default async function handler(req, res) {
   const supermercado = req.query.super;
-  const id = req.query.id;
+  let id = req.query.id;
 
-  if (!id || id === "0") return res.status(400).json({ error: "ID no válido" });
+  if (!id) return res.status(400).json({ error: "ID requerido" });
+
+  // Limpiamos el ID de BonArea por si viene con texto (ej: 13_0003)
+  if (supermercado === 'bonarea') {
+      id = id.includes('_') ? id.split('_')[1] : id;
+  }
 
   // --- MERCADONA (VILADECANS 08840) ---
   if (supermercado === 'mercadona') {
     try {
       const response = await fetch(`https://tienda.mercadona.es/api/products/${id}`, {
-        headers: {
-          'Cookie': 'warehouse=08840',
-          'User-Agent': 'Mozilla/5.0'
-        }
+        headers: { 'Cookie': 'warehouse=08840', 'User-Agent': 'Mozilla/5.0' }
       });
       const data = await response.json();
       return res.status(200).json({
@@ -24,16 +26,17 @@ export default async function handler(req, res) {
     }
   }
 
-  // --- BONÀREA (Buscador mejorado) ---
+  // --- BONÀREA ---
   if (supermercado === 'bonarea') {
     try {
+      // Usamos el ID numérico limpio
       const response = await fetch(`https://www.bonarea-online.com/es/shop/product/${id}`);
       if (!response.ok) return res.status(404).json({ error: "No encontrado" });
       
       const html = await response.text();
       
-      // Buscamos el precio dentro del objeto JSON "offers" de la web
-      const precioMatch = html.match(/"price":\s*"([\d.]+)"/) || html.match(/price:\s*([\d.]+)/);
+      // Buscamos el precio en el JSON interno de la página
+      const precioMatch = html.match(/"price":\s*"([\d.]+)"/);
       const nombreMatch = html.match(/<h1[^>]*>(.*?)<\/h1>/);
 
       if (precioMatch) {
