@@ -5,6 +5,7 @@ export default async function handler(req, res) {
   if (supermercado === 'mercadona') {
     try {
       const response = await fetch(`https://tienda.mercadona.es/api/products/${id}`);
+
       if (!response.ok) {
         return res.status(404).json({ error: "Producto no encontrado en Mercadona" });
       }
