@@ -4,6 +4,11 @@ export default async function handler(req, res) {
 
   if (!id) return res.status(400).json({ error: "ID requerido" });
 
+  // Limpieza robusta del ID para BonArea (acepta "13_7553" o "7553")
+  if (supermercado === 'bonarea' && id.includes('_')) {
+      id = id.split('_')[1];
+  }
+
   // --- MERCADONA (VILADECANS 08840) ---
   if (supermercado === 'mercadona') {
     try {
@@ -16,7 +21,7 @@ export default async function handler(req, res) {
       const data = await response.json();
       return res.status(200).json({
         id,
-        nombre: data.display_name,
+        nombre: data.display_name || "Producto Mercadona",
         precio: parseFloat(data.price_instructions.unit_price)
       });
     } catch (e) {
@@ -24,40 +29,36 @@ export default async function handler(req, res) {
     }
   }
 
-  // --- BONÀREA (Versión Ultra-Compatible) ---
+  // --- BONÀREA ---
   if (supermercado === 'bonarea') {
     try {
-      // Forzamos el ID a número por si acaso
-      const cleanId = parseInt(id, 10);
-      const urlBonArea = `https://www.bonarea-online.com/es/shop/product/${cleanId}`;
-      
+      const urlBonArea = `https://www.bonarea-online.com/es/shop/product/${id}`;
       const response = await fetch(urlBonArea, {
           headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+              'Accept': 'text/html',
               'Referer': 'https://www.bonarea-online.com/'
           }
       });
 
-      if (!response.ok) return res.status(404).json({ error: `BonArea no responde: ${response.status}` });
+      if (!response.ok) return res.status(404).json({ error: `BonArea no encuentra el ID ${id}` });
       
       const html = await response.text();
       
-      // Intentamos extraer el precio buscando el patrón específico que usa BonÀrea en su JSON oculto
-      const precioMatch = html.match(/"price"\s*:\s*"?([\d.]+)"?/);
+      // Buscamos precio en el script JSON de la página
+      const precioMatch = html.match(/"price"\s*:\s*"([\d.]+)"/) || html.match(/price\s*:\s*([\d.]+)/);
       const nombreMatch = html.match(/<h1[^>]*>(.*?)<\/h1>/);
 
-      if (precioMatch && precioMatch[1]) {
+      if (precioMatch) {
         return res.status(200).json({
-          id: id,
+          id,
           nombre: nombreMatch ? nombreMatch[1].trim() : "Producto BonÀrea",
           precio: parseFloat(precioMatch[1])
         });
       }
-      
-      return res.status(404).json({ error: "Precio no encontrado en el HTML de BonArea" });
+      return res.status(404).json({ error: "HTML cargado pero precio no encontrado" });
     } catch (e) {
-      return res.status(500).json({ error: "Error de servidor al conectar con BonArea" });
+      return res.status(500).json({ error: "Error de conexión con BonArea" });
     }
   }
 
