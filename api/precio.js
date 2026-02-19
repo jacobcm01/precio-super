@@ -25,32 +25,27 @@ export default async function handler(req, res) {
     }
   }
 
-  // --- BONÀREA (SIMULACIÓN DE NAVEGADOR REAL) ---
+ // --- BONÀREA (FORZAR IDIOMA, COOKIES Y EVITAR REDIRECCIONES) ---
 if (supermercado === 'bonarea') {
   try {
     const idDecodificado = decodeURIComponent(id);
     const urlBonArea = `https://www.bonarea-online.com/online/producte/${idDecodificado}`;
 
     const response = await fetch(urlBonArea, {
+      method: "GET",
+      redirect: "follow",
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "es-ES,es;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Connection": "keep-alive",
-        "Upgrade-Insecure-Requests": "1",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "none",
-        "Sec-Fetch-User": "?1",
-        "Referer": "https://www.bonarea-online.com/",
-        "Cookie": "cookie_consent=1"
+        "Accept-Language": "ca-ES,ca;q=0.9,es-ES;q=0.8",
+        "Referer": "https://www.bonarea-online.com/online",
+        "Cookie": "cookie_consent=1; ba_lang=ca"
       }
     });
 
     const html = await response.text();
 
-    // Nuevo selector más robusto
+    // Buscamos precio en varios formatos
     const precioMatch =
       html.match(/data-price="([\d.,]+)"/) ||
       html.match(/"price"\s*:\s*"([\d.,]+)"/) ||
@@ -69,13 +64,14 @@ if (supermercado === 'bonarea') {
     return res.status(404).json({
       error: "Precio no encontrado en HTML",
       urlLlamada: urlBonArea,
-      htmlRecibido: html.slice(0, 500) // para depurar
+      htmlRecibido: html.slice(0, 500)
     });
 
   } catch (e) {
     return res.status(500).json({ error: "Error de conexión con BonÀrea", detalle: e.message });
   }
 }
+
 
 
 
