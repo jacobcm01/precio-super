@@ -25,25 +25,37 @@ export default async function handler(req, res) {
     }
   }
 
-  // --- BONPREU / ESCLAT ---
+ // --- BONPREU / ESCLAT (Versión Actualizada 2026) ---
   if (supermercado === 'bonpreu') {
     try {
-      // Usamos su API v3 que es muy rápida
-      const response = await fetch(`https://www.compraonline.bonpreuesclat.cat/api/v3/products/${id}`);
+      // Intentamos con la API de producto directa
+      const urlBonPreu = `https://www.compraonline.bonpreuesclat.cat/api/v3/products/${id}`;
       
-      if (!response.ok) return res.status(404).json({ error: "No encontrado en BonPreu" });
-      
+      const response = await fetch(urlBonPreu, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        return res.status(404).json({ error: `BonPreu no reconoce el ID ${id}` });
+      }
+
       const data = await response.json();
       
-      return res.status(200).json({
-        id,
-        nombre: data.name,
-        precio: parseFloat(data.prices.pc.amount)
-      });
+      // Verificamos que existan los campos de precio
+      if (data && data.prices && data.prices.pc) {
+        return res.status(200).json({
+          id,
+          nombre: data.name || "Producto BonPreu",
+          precio: parseFloat(data.prices.pc.amount)
+        });
+      } else {
+        return res.status(404).json({ error: "Estructura de precio no encontrada" });
+      }
+
     } catch (e) {
-      return res.status(500).json({ error: "Error en BonPreu" });
+      return res.status(500).json({ error: "Error de conexión con la API de BonPreu" });
     }
   }
-
-  return res.status(404).json({ error: "Supermercado no soportado" });
-}
