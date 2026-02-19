@@ -25,46 +25,45 @@ export default async function handler(req, res) {
     }
   }
 
-  // --- BONÀREA (SCRAPING REAL, SIN API) ---
-  if (supermercado === 'bonarea') {
-    try {
-      // IMPORTANTE: BonÀrea usa URLs con SLUG + ID (ej: arros-extra/13_7553)
-      // El slug NO se puede adivinar, así que lo construimos genérico:
-      const urlBonArea = `https://www.bonarea-online.com/online/producte/${id}`;
+  // --- BONÀREA (SCRAPING REAL) ---
+if (supermercado === 'bonarea') {
+  try {
+    // Android envía "arros-extra/13_7553" pero llega como "arros-extra%2F13_7553"
+    const idDecodificado = decodeURIComponent(id);
 
-      const response = await fetch(urlBonArea, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0',
-          'Accept': 'text/html'
-        }
-      });
+    const urlBonArea = `https://www.bonarea-online.com/online/producte/${idDecodificado}`;
 
-      if (!response.ok) {
-        return res.status(404).json({ error: `BonÀrea no encuentra el producto ${id}` });
+    const response = await fetch(urlBonArea, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        'Accept': 'text/html'
       }
+    });
 
-      const html = await response.text();
-
-      // Precio: aparece como data-price="1.45"
-      const precioMatch = html.match(/data-price="([\d.,]+)"/);
-
-      // Nombre: dentro del <h1>
-      const nombreMatch = html.match(/<h1[^>]*>(.*?)<\/h1>/);
-
-      if (precioMatch) {
-        return res.status(200).json({
-          id,
-          nombre: nombreMatch ? nombreMatch[1].trim() : "Producto BonÀrea",
-          precio: parseFloat(precioMatch[1].replace(',', '.'))
-        });
-      }
-
-      return res.status(404).json({ error: "HTML cargado pero precio no encontrado" });
-
-    } catch (e) {
-      return res.status(500).json({ error: "Error de conexión con BonÀrea" });
+    if (!response.ok) {
+      return res.status(404).json({ error: `BonÀrea no encuentra el producto ${idDecodificado}` });
     }
+
+    const html = await response.text();
+
+    const precioMatch = html.match(/data-price="([\d.,]+)"/);
+    const nombreMatch = html.match(/<h1[^>]*>(.*?)<\/h1>/);
+
+    if (precioMatch) {
+      return res.status(200).json({
+        id: idDecodificado,
+        nombre: nombreMatch ? nombreMatch[1].trim() : "Producto BonÀrea",
+        precio: parseFloat(precioMatch[1].replace(',', '.'))
+      });
+    }
+
+    return res.status(404).json({ error: "HTML cargado pero precio no encontrado" });
+
+  } catch (e) {
+    return res.status(500).json({ error: "Error de conexión con BonÀrea" });
   }
+}
+
 
   return res.status(404).json({ error: "Super no soportado" });
 }
