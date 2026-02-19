@@ -25,51 +25,54 @@ export default async function handler(req, res) {
     }
   }
 
-  // --- BONÀREA (SCRAPING HTML, CON DEBUG CLARO) ---
+  // --- BONÀREA (SIMULACIÓN DE NAVEGADOR REAL) ---
 if (supermercado === 'bonarea') {
   try {
-    // id debería venir como: "arros-extra/13_7553"
-    const urlBonArea = `https://www.bonarea-online.com/online/producte/${id}`;
-
-    console.log('BONAREA URL:', urlBonArea);
+    const idDecodificado = decodeURIComponent(id);
+    const urlBonArea = `https://www.bonarea-online.com/online/producte/${idDecodificado}`;
 
     const response = await fetch(urlBonArea, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'es-ES,es;q=0.9',
-        'Referer': 'https://www.bonarea-online.com/online'
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "es-ES,es;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Referer": "https://www.bonarea-online.com/",
+        "Cookie": "cookie_consent=1"
       }
     });
 
-    // Aquí ya NO mentimos: devolvemos el status real de BonÀrea
-    if (!response.ok) {
-      const body = await response.text().catch(() => '');
-      console.error('BONAREA NO OK', response.status, body.slice(0, 200));
-      return res.status(response.status).json({
-        error: `BonÀrea respondió ${response.status}`,
-        urlLlamada: urlBonArea
-      });
-    }
-
     const html = await response.text();
 
-    const precioMatch = html.match(/data-price="([\d.,]+)"/);
+    // Nuevo selector más robusto
+    const precioMatch =
+      html.match(/data-price="([\d.,]+)"/) ||
+      html.match(/"price"\s*:\s*"([\d.,]+)"/) ||
+      html.match(/<span[^>]*class="price"[^>]*>([\d.,]+)<\/span>/);
+
     const nombreMatch = html.match(/<h1[^>]*>(.*?)<\/h1>/);
 
     if (precioMatch) {
       return res.status(200).json({
-        id,
+        id: idDecodificado,
         nombre: nombreMatch ? nombreMatch[1].trim() : "Producto BonÀrea",
-        precio: parseFloat(precioMatch[1].replace(',', '.'))
+        precio: parseFloat(precioMatch[1].replace(",", "."))
       });
     }
 
-    console.error('BONAREA HTML SIN PRECIO');
-    return res.status(404).json({ error: "HTML cargado pero precio no encontrado", urlLlamada: urlBonArea });
+    return res.status(404).json({
+      error: "Precio no encontrado en HTML",
+      urlLlamada: urlBonArea,
+      htmlRecibido: html.slice(0, 500) // para depurar
+    });
 
   } catch (e) {
-    console.error('BONAREA EXCEPCIÓN', e);
     return res.status(500).json({ error: "Error de conexión con BonÀrea", detalle: e.message });
   }
 }
