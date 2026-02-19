@@ -30,7 +30,7 @@ export default async function handler(req, res) {
     try {
       // IMPORTANTE: BonÀrea usa URLs con SLUG + ID (ej: arros-extra/13_7553)
       // El slug NO se puede adivinar, así que lo construimos genérico:
-      const urlBonArea = `https://www.bonarea-online.com/online/producte/arros-extra/${id}`;
+      const urlBonArea = `https://www.bonarea-online.com/online/producte/${id}`;
 
       const response = await fetch(urlBonArea, {
         headers: {
